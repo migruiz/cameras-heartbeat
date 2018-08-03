@@ -36,9 +36,17 @@ function executeSingleCommandAsync(code) {
 
 
 
-async function  onMessageReceived(){
-    await executeCommandAsync(process.env.OFFCODE);
-    await executeCommandAsync(process.env.ONCODE);
+async function  onMessageReceived(msg){
+    var msgData = JSON.parse(msg);
+    var delta = msg.timestamp - Math.floor(Date.now() / 1000)
+    if (Math.abs(delta) < 20) {
+        await executeCommandAsync(process.env.OFFCODE);
+        await executeCommandAsync(process.env.ONCODE);
+    }
+    else{
+        consol.log("ignore");
+    }
+    
 
 }
 
@@ -80,7 +88,7 @@ async function initAsync(){
     await channel.assertQueue(queuename, { durable: config.durable });
     channel.consume(queuename, function (msg) {
         try {
-            onMessageReceived(channel, msg);
+            onMessageReceived(msg);
             channel.ack(msg);
         } catch (err) {
             console.log("err consuming message" + serverURI + queuename);
