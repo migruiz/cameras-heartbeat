@@ -11,6 +11,13 @@ const timeout = ms => new Promise(res => setTimeout(res, ms))
 
 async function executeCommandAsync(code){
     for (var i = 0; i < 5; i++) {
+        await executeSingleCommandAsync(code);
+        await timeout(1000);
+    }
+}
+
+function executeSingleCommandAsync(code) {
+    return new Promise(function (resolve, reject) {
         const command = spawn('/433Utils/RPi_utils/codesend'
         , [
             code
@@ -19,11 +26,15 @@ async function executeCommandAsync(code){
         ]);
         command.stdout.on('data', data => {
             console.log(data.toString());
-            console.log(Math.floor(new Date() / 1000));
         });
-        await timeout(2000)
-    }
+        command.on('exit', function (code, signal) {
+            console.log('exited');
+            resolve();
+        });
+    });
 }
+
+
 
 async function  onMessageReceived(){
     await executeCommandAsync(process.env.OFFCODE);
