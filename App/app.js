@@ -11,8 +11,9 @@ const timeout = ms => new Promise(res => setTimeout(res, ms))
 
 async function executeCommandAsync(code){
     for (var i = 0; i < 5; i++) {
+        console.log('started');
         await executeSingleCommandAsync(code);
-        await timeout(1000);
+        await timeout(3000);
     }
 }
 
