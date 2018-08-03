@@ -10,11 +10,9 @@ const config={ durable: true, noAck: false }
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
 async function executeCommandAsync(code){
-    console.log('executeCommandAsync');
     for (var i = 0; i < 5; i++) {
-        console.log('started');
         await executeSingleCommandAsync(code);
-        await timeout(3000);
+        await timeout(1000);
     }
 }
 
@@ -39,7 +37,6 @@ function executeSingleCommandAsync(code) {
 
 
 async function  onMessageReceived(){
-    console.log('onMessageReceived');
     await executeCommandAsync(process.env.OFFCODE);
     await executeCommandAsync(process.env.ONCODE);
 
