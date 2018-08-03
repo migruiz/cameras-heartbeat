@@ -44,7 +44,7 @@ async function  onMessageReceived(content){
         await executeCommandAsync(process.env.ONCODE);
     }
     else{
-        consol.log("ignore");
+        console.log("ignore");
     }
     
 
