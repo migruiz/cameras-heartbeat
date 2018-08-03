@@ -10,6 +10,7 @@ const config={ durable: true, noAck: false }
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
 async function executeCommandAsync(code){
+    console.log('executeCommandAsync');
     for (var i = 0; i < 5; i++) {
         console.log('started');
         await executeSingleCommandAsync(code);
@@ -38,6 +39,7 @@ function executeSingleCommandAsync(code) {
 
 
 async function  onMessageReceived(){
+    console.log('onMessageReceived');
     await executeCommandAsync(process.env.OFFCODE);
     await executeCommandAsync(process.env.ONCODE);
 
@@ -82,6 +84,7 @@ async function initAsync(){
     channel.consume(queuename, function (msg) {
         try {
             onMessageReceived(channel, msg);
+            channel.ack(msg);
         } catch (err) {
             console.log("err consuming message" + serverURI + queuename);
             console.log(msg);
