@@ -17,37 +17,22 @@ RUN curl -o wiringpi.tar.gz  "https://git.drogon.net/?p=wiringPi;a=snapshot;h=8d
 && ./build \
 && cd ..
 
-RUN mkdir /code/
+RUN mkdir /App/
 
-RUN mkdir /code/extractor/ 
-COPY extractor /code/extractor
 
-RUN cd /code/extractor \
-&& make 
+COPY App/package.json  /App/package.json
 
-RUN  mkdir /code/pusher/ 
-
-COPY pusher/package.json  /code/pusher/package.json
-
-RUN cd /code/pusher \
+RUN cd /App/ \
 && npm  install 
 
 
+COPY App /App
 
 
-RUN mkdir /sensorsdata
-
-COPY pusher /code/pusher
-
-
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN [ "cross-build-end" ]  
 
 
 
-
-
-ENTRYPOINT ["/usr/bin/supervisord"]
-
+ENTRYPOINT ["node","/App/app.js"]
 

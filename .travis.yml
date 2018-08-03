@@ -6,7 +6,7 @@ services:
 
 env:
   global:
-    - PI_APP=cameras-sensors
+    - PI_APP=cameras-heartbeat
   matrix:
     - PI_TYPE=rpi3
     - PI_TYPE=zero
