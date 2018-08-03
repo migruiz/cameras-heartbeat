@@ -38,7 +38,7 @@ function executeSingleCommandAsync(code) {
 
 async function  onMessageReceived(content){
     var msgData = JSON.parse(content);
-    var delta = msg.timestamp - Math.floor(Date.now() / 1000)
+    var delta = msgData.timestamp - Math.floor(Date.now() / 1000)
     if (Math.abs(delta) < 20) {
         await executeCommandAsync(process.env.OFFCODE);
         await executeCommandAsync(process.env.ONCODE);
