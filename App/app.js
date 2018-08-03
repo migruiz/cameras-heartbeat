@@ -1,4 +1,4 @@
-
+var spawn = require('child_process').spawn;
 var amqp = require('amqplib');
 
 
@@ -7,8 +7,28 @@ const queuename='restartCamera'
 const config={ durable: true, noAck: false }
 
 
-function onMessageReceived(){
-    console.log("message received");
+const timeout = ms => new Promise(res => setTimeout(res, ms))
+
+async function executeCommandAsync(code){
+    for (var i = 0; i < 5; i++) {
+        const command = spawn('/433Utils/RPi_utils/codesend'
+        , [
+            ,code
+            , '-l'
+            , '200'
+        ]);
+        command.stdout.on('data', data => {
+            console.log(data.toString());
+            console.log(Math.floor(new Date() / 1000));
+        });
+        await timeout(2000)
+    }
+}
+
+async function  onMessageReceived(){
+    await executeCommandAsync(process.env.OFFCODE);
+    await executeCommandAsync(process.env.ONCODE);
+
 }
 
 
