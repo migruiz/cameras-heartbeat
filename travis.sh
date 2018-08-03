@@ -6,8 +6,7 @@ if [[ -z "$TRAVIS_TAG" ]]; then
 		HUBNAME=migruiz/$PI_APP-$PI_TYPE;
 	else
 		HUBNAME=migruiz/$PI_APP-$PI_TYPE:$TRAVIS_BRANCH
-	fi
-   
+	fi   
 else
 	HUBNAME=migruiz/$PI_APP-$PI_TYPE:$TRAVIS_TAG;
 fi
