@@ -1,8 +1,5 @@
 
 var amqp = require('amqplib');
-var await = require('asyncawait/await');
-var async = require('asyncawait/async');
-
 
 
 const serverURI="amqp://mslgcpgp:n5Ya32JaLtoYt7Qu0uemu7SFNPpGw8T5@puma.rmq.cloudamqp.com/mslgcpgp";
@@ -21,7 +18,7 @@ function onMessageReceived(){
 function reportError() {
     console.log(Math.floor(new Date() / 1000));
 }
-function monitorConnection(connection) {
+async function monitorConnection(connection) {
     var onProcessTerminatedHandler = function () { connection.close(); };
     connection.on('error', function (err) {
         console.log("on error queue" + serverURI + queuename);
@@ -33,9 +30,11 @@ function monitorConnection(connection) {
     });
     process.once('SIGINT', onProcessTerminatedHandler);
 }
-var asyncFx = async(function () {
+
+async function initAsync(){
+
     try {
-        var connection = await(amqp.connect(serverURI));
+        var connection = await amqp.connect(serverURI);
     }
     catch (connerr) {
         console.log("error connecting queue" + serverURI + queuename);
@@ -46,8 +45,8 @@ var asyncFx = async(function () {
         return;
     }
     monitorConnection(connection);
-    var channel = await(connection.createChannel());
-    await(channel.assertQueue(queuename, { durable: config.durable }));
+    var channel = await connection.createChannel();
+    await channel.assertQueue(queuename, { durable: config.durable });
     channel.consume(queuename, function (msg) {
         try {
             onMessageReceived(channel, msg);
@@ -56,10 +55,9 @@ var asyncFx = async(function () {
             console.log(msg);
         }
     }, { noAck: config.noAck });
+}
 
-});
-asyncFx();
-
+initAsync();
 
 
 
