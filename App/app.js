@@ -13,7 +13,7 @@ async function executeCommandAsync(code){
     for (var i = 0; i < 5; i++) {
         const command = spawn('/433Utils/RPi_utils/codesend'
         , [
-            ,code
+            code
             , '-l'
             , '200'
         ]);
