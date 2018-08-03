@@ -1,76 +1,67 @@
 
 var amqp = require('amqplib');
-var fs = require('mz/fs')
-var Inotify = require('inotify').Inotify;
-var inotify = new Inotify();
 var await = require('asyncawait/await');
 var async = require('asyncawait/async');
-var sensorDataPath = '/sensorsdata/';
 
 
 
+const serverURI="amqp://mslgcpgp:n5Ya32JaLtoYt7Qu0uemu7SFNPpGw8T5@puma.rmq.cloudamqp.com/mslgcpgp";
+const queuename='restartCamera'
+const config={ durable: true, noAck: false }
 
-inotify.addWatch({
-    path: sensorDataPath,
-    watch_for: Inotify.IN_ALL_EVENTS,
-    callback: onNewFileGenerated
-});
 
-function onNewFileGenerated(event) {
-    var mask = event.mask;
-    if (mask & Inotify.IN_CLOSE_WRITE) {
-        var fileName = event.name;
-        handleReadingFileGeneratedV2(fileName);
-    }
+function onMessageReceived(){
+    console.log("message received");
 }
 
-function handleReadingFileGeneratedV2(fileName) {
-    var filePath = sensorDataPath + fileName;
-    async(function () {
-        try {
-            var data = await(fs.readFile(filePath, 'utf8'));
-            var content = { data: data, fileName: fileName };
-            await(reportContentAsync("amqp://mslgcpgp:n5Ya32JaLtoYt7Qu0uemu7SFNPpGw8T5@puma.rmq.cloudamqp.com/mslgcpgp", content));
-            await(fs.unlink(filePath));
-        }
-        catch (error) {
-            console.log(error);
-        }
 
-    })();
+
+
+
+function reportError() {
+    console.log(Math.floor(new Date() / 1000));
 }
-function reportContentAsync(uri, content) {
-    var connection;
-    try {
-        connection = await(amqp.connect(uri));
-        var channel = await(connection.createChannel());
-        var queue = 'doorOpenEvents';
-        var msg = JSON.stringify(content);
-        await(channel.assertQueue(queue, { durable: true }));
-        await(channel.sendToQueue(queue, Buffer.from(msg)));
-        await(channel.close());
-    }
-    catch (err) {
-        console.log("TEMPER error connecting queue" + uri + queue);
+function monitorConnection(connection) {
+    var onProcessTerminatedHandler = function () { connection.close(); };
+    connection.on('error', function (err) {
+        console.log("on error queue" + serverURI + queuename);
         console.log(err);
+        reportError();
         setTimeout(function () {
-            var asyncFx = async(function () {
-                reportContentAsync(uri, content)
-            });
-            asyncFx();
-
+            listenToQueue(serverURI, queuename, config, onMessageReceived);
+        }, 1000);
+    });
+    process.once('SIGINT', onProcessTerminatedHandler);
+}
+var asyncFx = async(function () {
+    try {
+        var connection = await(amqp.connect(serverURI));
+    }
+    catch (connerr) {
+        console.log("error connecting queue" + serverURI + queuename);
+        reportError();
+        setTimeout(function () {
+            listenToQueue(serverURI, queuename, config, onMessageReceived);
         }, 1000);
         return;
     }
-    finally {
-        if (connection) {
-            connection.close();
+    monitorConnection(connection);
+    var channel = await(connection.createChannel());
+    await(channel.assertQueue(queuename, { durable: config.durable }));
+    channel.consume(queuename, function (msg) {
+        try {
+            onMessageReceived(channel, msg);
+        } catch (err) {
+            console.log("err consuming message" + serverURI + queuename);
+            console.log(msg);
         }
-    }
+    }, { noAck: config.noAck });
+
+});
+asyncFx();
 
 
 
-}
 
 
 // Catch uncaught exception

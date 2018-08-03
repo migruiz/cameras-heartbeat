@@ -6,7 +6,7 @@ RUN curl -sL https://deb.nodesource.com/setup_8.x | bash - \
 
 
 RUN apt-get update && \
-apt-get install -yqq --no-install-recommends g++ gcc make supervisor  && rm -rf /var/lib/apt/lists/*
+apt-get install -yqq --no-install-recommends g++ gcc make  && rm -rf /var/lib/apt/lists/*
 
 
 
@@ -16,6 +16,13 @@ RUN curl -o wiringpi.tar.gz  "https://git.drogon.net/?p=wiringPi;a=snapshot;h=8d
 && cd /wiringPi/ \
 && ./build \
 && cd ..
+
+ 
+RUN mkdir /433Utils
+COPY  433Utils /433Utils/
+
+RUN cd /433Utils/RPi_utils \
+&& make
 
 RUN mkdir /App/
 
