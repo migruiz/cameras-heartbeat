@@ -1,7 +1,8 @@
 var spawn = require('child_process').spawn;
 
 
-var mqtt = require('mqtt')
+var mqtt = require('./mqttCluster.js');
+global.mtqqLocalPath = process.env.MQTTLOCAL;
 global.restartCameraTopic="restartCameraTopic"
 global.onCode=process.env.OnCode
 global.offCode=process.env.OffCode
@@ -9,22 +10,19 @@ global.waitForNextCommand=500
 global.waitForTurnOn=5 *1000
 global.roundCycles=6
 
-var client  = mqtt.connect(global.mtqqURL)
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
-client.on('connect', function () {
-  client.subscribe(global.turnOnLightsTopic)
-  client.subscribe(global.turnOffLightsTopic)
-  client.subscribe(global.lightsOnNextNodeTopic)
-  client.subscribe(global.lightsOffNextNodeTopic)
-})
-client.on('message',async function (topic, message) {
-    if (topic === global.restartCameraTopic) {    
+(async function(){
+    var mqttCluster=await mqtt.getClusterAsync()   
+    mqttCluster.subscribeData(global.restartCameraTopic, async function(content){
         await executeMultipleCommandsAsync(global.offCode)
         await timeout(global.waitForTurnOn);
         await executeMultipleCommandsAsync(global.onCode) 
-    }
-  })
+    });
+})();
+
+
+
 
 
 
