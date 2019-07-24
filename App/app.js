@@ -1,29 +1,111 @@
 var spawn = require('child_process').spawn;
-var amqp = require('amqplib');
 
 
-const serverURI="amqp://mslgcpgp:n5Ya32JaLtoYt7Qu0uemu7SFNPpGw8T5@puma.rmq.cloudamqp.com/mslgcpgp";
-const queuename='restartCamera'
-const config={ durable: true, noAck: false }
+var mqtt = require('mqtt')
+global.mtqqURL=process.env.mtqqURL
+global.turnOnLightsTopic="lightson"
+global.lightsOnNextNodeTopic="lightsOnNextNode"
+global.lightsOffNextNodeTopic="lightsOffNextNode"
+global.turnOffLightsTopic="lightsoff"
+global.onCodes=JSON.parse(process.env.onCodes)
+global.offCodes=JSON.parse(process.env.offCodes)
+global.nodeId=parseInt(process.env.nodeId)
+global.waitForNextCommand=500
+global.expectedSingleCommandExecTime=400
+global.roundCycles=3
+
+var client  = mqtt.connect(global.mtqqURL)
+ 
+client.on('connect', function () {
+  client.subscribe(global.turnOnLightsTopic)
+  client.subscribe(global.turnOffLightsTopic)
+  client.subscribe(global.lightsOnNextNodeTopic)
+  client.subscribe(global.lightsOffNextNodeTopic)
+})
+client.on('message',async function (topic, message) {
+    if (topic === global.turnOnLightsTopic) {    
+        if (global.nodeId==1){
+            await executeMultipleCommandsAsync(global.onCodes)
+            client.publish(global.lightsOnNextNodeTopic,(global.nodeId+1).toString())
+        }  
+        else{  
+            waitToSwitchLightsOn()
+        }
+    }
+    else  if (topic === global.lightsOnNextNodeTopic && parseInt(message)==global.nodeId) {
+        clearTimeout(lightsOnTimeout)
+        await executeMultipleCommandsAsync(global.onCodes)
+        client.publish(global.lightsOnNextNodeTopic,(global.nodeId+1).toString())
+    }    
+    else  if (topic === global.turnOffLightsTopic) {
+        if (global.nodeId==1){
+            await executeMultipleCommandsAsync(global.offCodes)
+            client.publish(global.lightsOffNextNodeTopic,(global.nodeId+1).toString())
+        }  
+        else{  
+            waitToSwitchLightsOff()
+        }
+    }
+    else  if (topic === global.lightsOffNextNodeTopic && parseInt(message)==global.nodeId) {
+        clearTimeout(lightsOffTimeout)
+        await executeMultipleCommandsAsync(global.offCodes)
+        client.publish(global.lightsOffNextNodeTopic,(global.nodeId+1).toString())
+    }  
+  })
+
+var lightsOnTimeout;
+function waitToSwitchLightsOn(){
+    var expectedSingleCommandExecution=global.waitForNextCommand+global.expectedSingleCommandExecTime;
+    console.log("expectedSingleCommandExecutionOn",expectedSingleCommandExecution)
+    var expectedFullCycleExecution=global.roundCycles*global.onCodes.length*expectedSingleCommandExecution
+    console.log("expectedFullCycleExecutionOn",expectedFullCycleExecution)
+    var waitTime=(global.nodeId-1)*expectedFullCycleExecution;
+    console.log("waitTimeOn",waitTime)
+    lightsOnTimeout=setTimeout(async ()=>{ 
+       await executeMultipleCommandsAsync(global.onCodes)
+       client.publish(global.lightsOnNextNodeTopic,(global.nodeId+1).toString())
+    },waitTime)
+}
+
+
+
+var lightsOffTimeout;
+function waitToSwitchLightsOff(){
+    var expectedSingleCommandExecution=global.waitForNextCommand+global.expectedSingleCommandExecTime;
+    console.log("expectedSingleCommandExecutionOff",expectedSingleCommandExecution)
+    var expectedFullCycleExecution=global.roundCycles*global.offCodes.length*expectedSingleCommandExecution
+    console.log("expectedFullCycleExecutionOff",expectedFullCycleExecution)
+    var waitTime=(global.nodeId-1)*expectedFullCycleExecution;
+    console.log("waitTimeOff",waitTime)
+    lightsOffTimeout=setTimeout(async ()=>{ 
+       await executeMultipleCommandsAsync(global.offCodes)
+       client.publish(global.lightsOffNextNodeTopic,(global.nodeId+1).toString())
+    },waitTime)
+}
 
 
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
-async function executeCommandAsync(code){
-    for (var i = 0; i < 5; i++) {
-        await executeSingleCommandAsync(code);
-        await timeout(1000);
+async function executeMultipleCommandsAsync(codes) {
+    for (var i = 0; i < global.roundCycles; i++) {
+        for (codeIndex = 0; codeIndex < codes.length;codeIndex++) { 
+            var code=codes[codeIndex];
+             await executeSingleCommandAsync(code);
+             await timeout(global.waitForNextCommand);
+        }
+
+
     }
 }
 
 function executeSingleCommandAsync(code) {
     return new Promise(function (resolve, reject) {
         const command = spawn('/433Utils/RPi_utils/codesend'
-        , [
-            code
-            , '-l'
-            , '200'
-        ]);
+            , [
+                code
+                , '-l'
+                , '180'
+            ]);
         command.stdout.on('data', data => {
             console.log(data.toString());
         });
@@ -33,73 +115,6 @@ function executeSingleCommandAsync(code) {
         });
     });
 }
-
-
-
-async function  onMessageReceived(content){
-    var msgData = JSON.parse(content);
-    var delta = msgData.timestamp - Math.floor(Date.now() / 1000)
-    if (Math.abs(delta) < 20) {
-        await executeCommandAsync(process.env.OFFCODE);
-        await executeCommandAsync(process.env.ONCODE);
-    }
-    else{
-        console.log("ignore");
-    }
-    
-
-}
-
-
-
-
-
-function reportError() {
-    console.log(Math.floor(new Date() / 1000));
-}
-async function monitorConnection(connection) {
-    var onProcessTerminatedHandler = function () { connection.close(); };
-    connection.on('error', function (err) {
-        console.log("on error queue" + serverURI + queuename);
-        console.log(err);
-        reportError();
-        setTimeout(function () {
-            listenToQueue(serverURI, queuename, config, onMessageReceived);
-        }, 1000);
-    });
-    process.once('SIGINT', onProcessTerminatedHandler);
-}
-
-async function initAsync(){
-
-    try {
-        var connection = await amqp.connect(serverURI);
-    }
-    catch (connerr) {
-        console.log("error connecting queue" + serverURI + queuename);
-        reportError();
-        setTimeout(function () {
-            listenToQueue(serverURI, queuename, config, onMessageReceived);
-        }, 1000);
-        return;
-    }
-    monitorConnection(connection);
-    var channel = await connection.createChannel();
-    await channel.assertQueue(queuename, { durable: config.durable });
-    channel.consume(queuename, function (msg) {
-        try {
-            var content = msg.content.toString();
-            onMessageReceived(content);
-            channel.ack(msg);
-        } catch (err) {
-            console.log("err consuming message" + serverURI + queuename);
-            console.log(msg);
-        }
-    }, { noAck: config.noAck });
-}
-
-initAsync();
-
 
 
 
