@@ -12,14 +12,15 @@ global.roundCycles=6
 
 const timeout = ms => new Promise(res => setTimeout(res, ms))
 
-(async function(){
+async function init (){
     var mqttCluster=await mqtt.getClusterAsync()   
     mqttCluster.subscribeData(global.restartCameraTopic, async function(content){
         await executeMultipleCommandsAsync(global.offCode)
         await timeout(global.waitForTurnOn);
         await executeMultipleCommandsAsync(global.onCode) 
     });
-})();
+};
+init();
 
 
 
